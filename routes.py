@@ -51,8 +51,8 @@ def login_user():
     if (not user) or (not user.check_password(password)):
         return {'ok': False, 'error': 'Username/Password does not match.'}, 403
 
-    access_token = create_access_token(identity=user.username, fresh=True)
-    refresh_token = create_refresh_token(identity=user.username)
+    access_token = create_access_token(identity=user.id, fresh=True)
+    refresh_token = create_refresh_token(identity=user.id)
 
     return {'ok': True,
             'access_token': access_token,
@@ -71,5 +71,45 @@ def refresh_access_token():
 @jwt_required
 def get_user():
     identity = get_jwt_identity()
-    user = User.query.filter(User.username.ilike(identity)).first()
+    user = User.query.filter(User.id == identity).first()
     return {"ok": True, "username": user.username, "name": user.name}, 200
+
+
+@app.route('/user', methods=['PATCH'])
+@jwt_required
+@json_only
+def modify_user():
+    data = request.get_json()
+    identity = get_jwt_identity()
+    user = User.query.filter(User.id == identity).first()
+
+    username = data.get('username')
+    name = data.get('name')
+    password = data.get('password')
+
+    if not any([username, name, password]):
+        return {}, 304
+
+    if username is not None:
+        user.username = username
+
+    if name is not None:
+        user.name = name
+
+    if password is not None:
+        old_password = data.get("old_password")
+        if old_password is None:
+            return {"ok": False, "error": "old_password required!"}, 400
+
+        if not user.check_password(old_password):
+            return {"ok": False, "error": "old password is incorrect!"}, 403
+
+        user.password = password
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return {'ok': False, 'error': f'{e}'}, 400
+
+    return {}, 204
