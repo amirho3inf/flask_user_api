@@ -10,7 +10,7 @@ from flask_jwt_extended import (create_access_token, create_refresh_token,
 
 @app.route('/health_check', methods=['GET'])
 def health_check():
-    return {"ok": True}, 200
+    return {}, 200
 
 
 @app.route('/user', methods=['POST'])
@@ -31,12 +31,12 @@ def register_user():
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        return {'ok': False, 'error': 'Username already exists.'}, 400
+        return {'error': 'Username already exists.'}, 400
     except Exception as e:
         db.session.rollback()
-        return {'ok': False, 'error': f'{e}'}, 400
+        return {'error': f'{e}'}, 400
 
-    return {'ok': True, 'message': 'User registered successfully'}, 201
+    return {'message': 'User registered successfully'}, 201
 
 
 @app.route('/auth', methods=['POST'])
@@ -49,14 +49,12 @@ def login_user():
 
     user = User.query.filter(User.username.ilike(username)).first()
     if (not user) or (not user.check_password(password)):
-        return {'ok': False, 'error': 'Username/Password does not match.'}, 403
+        return {'error': 'Username/Password does not match.'}, 403
 
     access_token = create_access_token(identity=user.id, fresh=True)
     refresh_token = create_refresh_token(identity=user.id)
 
-    return {'ok': True,
-            'access_token': access_token,
-            'refresh_token': refresh_token}, 200
+    return {'access_token': access_token, 'refresh_token': refresh_token}, 200
 
 
 @app.route('/auth', methods=['PUT'])
@@ -64,7 +62,7 @@ def login_user():
 def refresh_access_token():
     identity = get_jwt_identity()
     access_token = create_access_token(identity=identity, fresh=False)
-    return {'ok': True, 'access_token': access_token}, 200
+    return {'access_token': access_token}, 200
 
 
 @app.route('/user', methods=['GET'])
@@ -72,7 +70,7 @@ def refresh_access_token():
 def get_user():
     identity = get_jwt_identity()
     user = User.query.filter(User.id == identity).first()
-    return {"ok": True, "username": user.username, "name": user.name}, 200
+    return {"username": user.username, "name": user.name}, 200
 
 
 @app.route('/user', methods=['PATCH'])
@@ -99,10 +97,10 @@ def modify_user():
     if password is not None:
         old_password = data.get("old_password")
         if old_password is None:
-            return {"ok": False, "error": "old_password required!"}, 400
+            return {"error": "old_password required!"}, 400
 
         if not user.check_password(old_password):
-            return {"ok": False, "error": "old password is incorrect!"}, 403
+            return {"error": "old password is incorrect!"}, 403
 
         user.password = password
 
@@ -110,6 +108,6 @@ def modify_user():
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        return {'ok': False, 'error': f'{e}'}, 400
+        return {'error': f'{e}'}, 400
 
     return {}, 204
