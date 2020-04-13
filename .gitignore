@@ -2,5 +2,6 @@ __pycache__
 .venv
 .env
 .vscode
+.pytest_cache 
 venv
 migrations
